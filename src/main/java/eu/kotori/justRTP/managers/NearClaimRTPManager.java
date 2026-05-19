@@ -129,17 +129,21 @@ public class NearClaimRTPManager {
                 Location finalLocation = optSafe.get();
                 String ownerName = targetClaim.getOwnerName();
                 this.plugin.getFoliaScheduler().runAtEntity((Entity)player, () -> {
-                    double cost;
-                    int cooldownSeconds = this.plugin.getConfig().getInt("near_claim_rtp.cooldown", 60);
-                    if (cooldownSeconds > 0) {
-                        this.cooldowns.put(player.getUniqueId(), now + (long)cooldownSeconds * 1000L);
-                    }
-                    if ((cost = this.plugin.getConfig().getDouble("near_claim_rtp.cost", 0.0)) > 0.0 && this.plugin.getVaultHook() != null && this.plugin.getVaultHook().hasEconomy()) {
+                    double cost = this.plugin.getConfig().getDouble("near_claim_rtp.cost", 0.0);
+                    if (cost > 0.0 && !player.hasPermission("justrtp.cost.bypass")) {
+                        if (this.plugin.getVaultHook() == null || !this.plugin.getVaultHook().hasEconomy()) {
+                            this.plugin.getLocaleManager().sendMessage((CommandSender)player, "economy.not_available");
+                            return;
+                        }
                         if (this.plugin.getVaultHook().getBalance(player) < cost) {
-                            this.plugin.getLocaleManager().sendMessage((CommandSender)player, "economy.insufficient_funds", Map.of("cost", FormatUtils.formatCost(cost)));
+                            this.plugin.getLocaleManager().sendMessage((CommandSender)player, "economy.not_enough_money", Map.of("cost", FormatUtils.formatCost(cost)));
                             return;
                         }
                         this.plugin.getVaultHook().withdrawPlayer(player, cost);
+                    }
+                    int cooldownSeconds = this.plugin.getConfig().getInt("near_claim_rtp.cooldown", 60);
+                    if (cooldownSeconds > 0) {
+                        this.cooldowns.put(player.getUniqueId(), now + (long)cooldownSeconds * 1000L);
                     }
                     player.teleportAsync(finalLocation).thenAccept(success -> {
                         if (success.booleanValue()) {

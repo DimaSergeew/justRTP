@@ -176,7 +176,10 @@ public class RTPZoneManager {
                 .filter(p -> p != null && p.isOnline() && !isIgnoring(p))
                 .collect(Collectors.toList());
 
-        plugin.getRTPLogger().debug("ZONE", "No valid teleport candidates for zone " + zone.getId());
+        if (teleportCandidates.isEmpty()) {
+            plugin.getRTPLogger().debug("ZONE", "No valid teleport candidates for zone " + zone.getId());
+            return;
+        }
 
         plugin.getRTPLogger().debug("ZONE",
                 "Teleporting " + teleportCandidates.size() + " players from zone " + zone.getId());

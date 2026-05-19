@@ -2,7 +2,7 @@
 # JustRTP Message Configuration
 # ----------------------------------------------------------------
 # CONFIG VERSION - DO NOT CHANGE THIS
-config-version: 19
+config-version: 20
 # ----------------------------------------------------------------
 # NOTE: The <time> placeholder is automatically formatted in human-readable format
 #       Examples: "5m 38s", "1h 2m", "30s"
@@ -69,9 +69,11 @@ teleport:
   already_in_progress: "%prefix% <red>You already have a teleport in progress. Please wait for it to complete.</red>"
   failed: "%prefix% <red>Teleportation failed. Please try again later.</red>"
   error: "%prefix% <red>An internal error occurred. Please contact an administrator.</red>"
+  using_default_world: "%prefix% <gray>No world specified — teleporting you to the default world <aqua><world></aqua>.</gray>"
 
 economy:
   not_enough_money: "%prefix% <red>You cannot afford to teleport. It costs <cost>.</red>"
+  not_available: "%prefix% <red>Economy is not available on this server, but this teleport requires payment.</red>"
   payment_success: "%prefix% <green>You have been charged <cost> for the teleport.</green>"
   needs_confirmation: "%prefix% <yellow>This teleport will cost <gold><cost></gold>. Type <green>/rtp confirm</green> or click <green><click:run_command:/rtp confirm><b>[HERE]</b></click></green> to continue."
   confirmed: "%prefix% <green>Teleport confirmed.</green>"

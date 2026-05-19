@@ -34,7 +34,13 @@ public class ConfirmationManager {
         Runnable action = pendingConfirmations.remove(player.getUniqueId());
         if (action != null) {
             plugin.getLocaleManager().sendMessage(player, "economy.confirmed");
-            action.run();
+            try {
+                action.run();
+            } catch (Throwable t) {
+                plugin.getLogger().severe("Error executing confirmation action for " + player.getName() + ": " + t.getMessage());
+                t.printStackTrace();
+                plugin.getLocaleManager().sendMessage(player, "teleport.error");
+            }
         } else {
             plugin.getLocaleManager().sendMessage(player, "economy.no_confirmation_pending");
         }

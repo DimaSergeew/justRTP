@@ -1,6 +1,7 @@
 package eu.kotori.justRTP.managers;
 
 import eu.kotori.justRTP.JustRTP;
+import eu.kotori.justRTP.utils.task.CancellableTask;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -18,9 +19,24 @@ public class RTPMatchmakingManager {
     private final JustRTP plugin;
     private final Map<World, List<MatchmakingRequest>> worldQueues = new ConcurrentHashMap<>();
     private final Map<UUID, Long> queueTimestamps = new ConcurrentHashMap<>();
+    private volatile CancellableTask tickerTask;
 
     public RTPMatchmakingManager(JustRTP plugin) {
         this.plugin = plugin;
+        startMatchmakingTicker();
+    }
+
+    public void shutdown() {
+        CancellableTask current = tickerTask;
+        tickerTask = null;
+        if (current != null && !current.isCancelled()) {
+            current.cancel();
+        }
+        worldQueues.clear();
+        queueTimestamps.clear();
+    }
+
+    public void reload() {
         startMatchmakingTicker();
     }
 
@@ -81,13 +97,24 @@ public class RTPMatchmakingManager {
 
     public boolean isInQueue(Player player) {
         UUID playerUUID = player.getUniqueId();
-        return worldQueues.values().stream()
-                .anyMatch(queue -> queue.stream().anyMatch(req -> req.player().getUniqueId().equals(playerUUID)));
+        for (List<MatchmakingRequest> queue : worldQueues.values()) {
+            synchronized (queue) {
+                for (MatchmakingRequest req : queue) {
+                    if (req.player().getUniqueId().equals(playerUUID)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     public int getQueueSize(World world) {
         List<MatchmakingRequest> queue = worldQueues.get(world);
-        return queue != null ? queue.size() : 0;
+        if (queue == null) return 0;
+        synchronized (queue) {
+            return queue.size();
+        }
     }
 
     public boolean isEnabled() {
@@ -95,18 +122,22 @@ public class RTPMatchmakingManager {
     }
 
     private void startMatchmakingTicker() {
+        CancellableTask existing = tickerTask;
+        if (existing != null && !existing.isCancelled()) {
+            existing.cancel();
+        }
+
         int tickInterval = plugin.getConfig().getInt("matchmaking.tick_interval", 60);
 
-        plugin.getFoliaScheduler().runTimer(() -> {
+        tickerTask = plugin.getFoliaScheduler().runTimer(() -> {
             if (!isEnabled()) return;
 
             for (Map.Entry<World, List<MatchmakingRequest>> entry : worldQueues.entrySet()) {
                 World world = entry.getKey();
                 List<MatchmakingRequest> queue = entry.getValue();
 
-                if (queue.size() < 2) continue;
-
                 synchronized (queue) {
+                    if (queue.isEmpty()) continue;
 
                     long currentTime = System.currentTimeMillis();
                     long timeout = plugin.getConfig().getLong("matchmaking.queue_timeout", 300) * 1000;

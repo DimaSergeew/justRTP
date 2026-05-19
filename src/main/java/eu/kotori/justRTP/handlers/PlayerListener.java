@@ -530,14 +530,10 @@ public class PlayerListener implements Listener {
 
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
+                int chunkX = centerChunkX + dx;
+                int chunkZ = centerChunkZ + dz;
                 try {
-                    int chunkX = centerChunkX + dx;
-                    int chunkZ = centerChunkZ + dz;
-
-                    if (world.isChunkLoaded(chunkX, chunkZ)) {
-                        Chunk chunk = world.getChunkAt(chunkX, chunkZ);
-                        chunk.getEntities();
-                    }
+                    PaperLib.getChunkAtAsync(world, chunkX, chunkZ, false);
                 } catch (Exception ignored) {
                 }
             }

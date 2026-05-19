@@ -15,6 +15,7 @@ import eu.kotori.justRTP.handlers.hooks.PlaceholderAPIHook;
 import eu.kotori.justRTP.handlers.hooks.VaultHook;
 import eu.kotori.justRTP.managers.*;
 import eu.kotori.justRTP.utils.*;
+import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Player;
@@ -26,8 +27,8 @@ import java.util.List;
 
 public final class JustRTP extends JavaPlugin {
 
-    private static final int CONFIG_VERSION = 32;
-    private static final int MESSAGES_CONFIG_VERSION = 19;
+    private static final int CONFIG_VERSION = 33;
+    private static final int MESSAGES_CONFIG_VERSION = 20;
     private static final int MYSQL_CONFIG_VERSION = 5;
     private static final int ANIMATIONS_CONFIG_VERSION = 2;
     private static final int COMMANDS_CONFIG_VERSION = 4;
@@ -297,6 +298,16 @@ public final class JustRTP extends JavaPlugin {
             addonManager.disableAddons();
         }
 
+        if (teleportQueueManager != null) {
+            rtpLogger.debug("SHUTDOWN", "Shutting down teleport queue...");
+            teleportQueueManager.shutdown();
+        }
+
+        if (matchmakingManager != null) {
+            rtpLogger.debug("SHUTDOWN", "Shutting down matchmaking...");
+            matchmakingManager.shutdown();
+        }
+
         if (rtpZoneManager != null) {
             rtpLogger.debug("SHUTDOWN", "Shutting down zone tasks...");
             rtpZoneManager.shutdownAllTasks();
@@ -325,6 +336,19 @@ public final class JustRTP extends JavaPlugin {
         if (hologramManager != null) {
             rtpLogger.debug("SHUTDOWN", "Cleaning up holograms...");
             hologramManager.cleanupAllHolograms();
+        }
+
+        try {
+            if (FoliaScheduler.isFolia()) {
+                Bukkit.getGlobalRegionScheduler().cancelTasks(this);
+                Bukkit.getAsyncScheduler().cancelTasks(this);
+            } else {
+                Bukkit.getScheduler().cancelTasks(this);
+            }
+        } catch (Throwable t) {
+            if (rtpLogger != null) {
+                rtpLogger.debug("SHUTDOWN", "Scheduler cleanup threw: " + t.getMessage());
+            }
         }
 
         this.getServer().getMessenger().unregisterOutgoingPluginChannel(this);
@@ -363,7 +387,7 @@ public final class JustRTP extends JavaPlugin {
         configManager.reload();
         rtpService.loadConfigValues();
         teleportQueueManager.reload();
-        animationManager.reload();
+        matchmakingManager.reload();
         effectsManager.reload();
         commandManager.registerCommands();
         hologramManager.initialize();

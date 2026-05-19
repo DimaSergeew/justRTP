@@ -1,6 +1,7 @@
 package eu.kotori.justRTP.managers;
 
 import eu.kotori.justRTP.JustRTP;
+import eu.kotori.justRTP.utils.task.CancellableTask;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import java.util.Optional;
@@ -29,6 +30,7 @@ public class TeleportQueueManager {
     private final ConcurrentLinkedQueue<TeleportRequest> queue = new ConcurrentLinkedQueue<>();
     private final ConcurrentHashMap<UUID, AtomicBoolean> processingPlayers = new ConcurrentHashMap<>();
     private final AtomicBoolean isProcessing = new AtomicBoolean(false);
+    private volatile CancellableTask processorTask;
 
     public TeleportQueueManager(JustRTP plugin) {
         this.plugin = plugin;
@@ -39,7 +41,29 @@ public class TeleportQueueManager {
         start();
     }
 
+    public void shutdown() {
+        CancellableTask current = processorTask;
+        processorTask = null;
+        if (current != null && !current.isCancelled()) {
+            current.cancel();
+        }
+        for (TeleportRequest req : queue) {
+            try {
+                req.future().complete(false);
+            } catch (Throwable ignored) {
+            }
+        }
+        queue.clear();
+        processingPlayers.clear();
+    }
+
     private void start() {
+        CancellableTask existing = processorTask;
+        if (existing != null && !existing.isCancelled()) {
+            existing.cancel();
+        }
+        processorTask = null;
+
         boolean useQueue = plugin.getConfig().getBoolean("performance.use_teleport_queue", true);
         if (!useQueue)
             return;
@@ -51,7 +75,7 @@ public class TeleportQueueManager {
             batchSize = 1;
 
         final int finalBatchSize = batchSize;
-        plugin.getFoliaScheduler().runTimer(() -> {
+        processorTask = plugin.getFoliaScheduler().runTimer(() -> {
             if (!isProcessing.compareAndSet(false, true)) {
                 plugin.getRTPLogger().debug("QUEUE", "Queue processing already in progress, skipping this tick");
                 return;
@@ -283,23 +307,22 @@ public class TeleportQueueManager {
             plugin.getRTPLogger().debug("QUEUE", "Cancelled in-progress teleport for " + player.getName());
         }
 
-        int removed = 0;
-        boolean moreToRemove = true;
-        while (moreToRemove) {
-            moreToRemove = queue.removeIf(request -> {
-                if (request.player() != null && request.player().getUniqueId().equals(playerUUID)) {
+        int[] removed = {0};
+        queue.removeIf(request -> {
+            if (request.player() != null && request.player().getUniqueId().equals(playerUUID)) {
+                try {
                     request.future().complete(false);
-                    return true;
+                } catch (Throwable ignored) {
                 }
-                return false;
-            });
-            if (moreToRemove)
-                removed++;
-        }
+                removed[0]++;
+                return true;
+            }
+            return false;
+        });
 
-        if (removed > 0) {
+        if (removed[0] > 0) {
             plugin.getRTPLogger().debug("QUEUE",
-                    "Cancelled " + removed + " queued teleport request(s) for " + player.getName());
+                    "Cancelled " + removed[0] + " queued teleport request(s) for " + player.getName());
         }
     }
 

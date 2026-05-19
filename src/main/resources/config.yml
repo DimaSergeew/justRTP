@@ -8,7 +8,7 @@
 # - FIXED: Folia threading violation in onPlayerDropItem
 # - FIXED: ClassNotFoundException for Pl3xMap on servers without it
 # ----------------------------------------------------------------
-config-version: 32
+config-version: 33
 # ----------------------------------------------------------------
 
 settings:
@@ -44,11 +44,16 @@ settings:
   
   # Optional: Force a server-wide default world for /rtp when no world is specified.
   # If empty (""), /rtp without a world will default to the player's current world (existing behaviour).
-  # If set to a valid world name (e.g. "world"), /rtp will use that world as the default target.
+  # If set to a valid world name (e.g. "world"), /rtp will use that world as the default target,
+  # EVEN when the player runs the command from a world listed in `disabled_worlds`.
   # Players with the permission "justrtp.bypass.default_world" will still default to their current world.
   # Example:
   #   settings.default_world: "world"
   default_world: ""
+
+  # When `default_world` is used and the player isn't already standing in it,
+  # should we send them a "teleport.using_default_world" message?
+  notify_default_world: true
   
   # Should the plugin check for updates on startup?
   # If true, the plugin will check Spigot for newer versions.

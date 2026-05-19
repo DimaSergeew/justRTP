@@ -68,11 +68,20 @@ public class RTPCommand implements CommandExecutor {
         if (sender instanceof Player player) {
             List<String> disabledWorlds = plugin.getConfig().getStringList("disabled_worlds");
             if (disabledWorlds.contains(player.getWorld().getName())) {
-                boolean showMessage = plugin.getConfig().getBoolean("disabled_worlds_show_message", true);
-                if (showMessage) {
-                    plugin.getLocaleManager().sendMessage(sender, "command.command_disabled_in_world");
+                String configuredDefaultWorld = plugin.getConfig()
+                        .getString("settings.default_world", "").trim();
+                boolean hasUsableDefault = !configuredDefaultWorld.isEmpty()
+                        && Bukkit.getWorld(configuredDefaultWorld) != null
+                        && !disabledWorlds.contains(configuredDefaultWorld)
+                        && !player.hasPermission("justrtp.bypass.default_world");
+
+                if (!hasUsableDefault) {
+                    boolean showMessage = plugin.getConfig().getBoolean("disabled_worlds_show_message", true);
+                    if (showMessage) {
+                        plugin.getLocaleManager().sendMessage(sender, "command.command_disabled_in_world");
+                    }
+                    return true;
                 }
-                return true;
             }
         }
 
@@ -330,10 +339,17 @@ public class RTPCommand implements CommandExecutor {
                     World defaultWorldObj = Bukkit.getWorld(configuredDefaultWorld);
                     if (defaultWorldObj != null) {
                         targetWorld = defaultWorldObj;
+                        if (sender instanceof Player
+                                && !targetWorld.equals(targetPlayer.getWorld())
+                                && plugin.getConfig().getBoolean("settings.notify_default_world", true)) {
+                            plugin.getLocaleManager().sendMessage(sender, "teleport.using_default_world",
+                                    Placeholder.unparsed("world", targetWorld.getName()));
+                        }
                     } else {
-                        plugin.getRTPLogger().debug("COMMAND",
-                                "Configured default RTP world not found: " + configuredDefaultWorld
-                                        + ", falling back to player world");
+                        plugin.getLogger().warning(
+                                "Configured default RTP world not found: '" + configuredDefaultWorld
+                                        + "'. Falling back to the player's current world. " +
+                                        "Check 'settings.default_world' in config.yml.");
                         targetWorld = targetPlayer.getWorld();
                     }
                 }
