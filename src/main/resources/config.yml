@@ -8,7 +8,7 @@
 # - FIXED: Folia threading violation in onPlayerDropItem
 # - FIXED: ClassNotFoundException for Pl3xMap on servers without it
 # ----------------------------------------------------------------
-config-version: 33
+config-version: 34
 # ----------------------------------------------------------------
 
 settings:
