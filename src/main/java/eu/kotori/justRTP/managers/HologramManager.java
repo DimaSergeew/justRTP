@@ -189,6 +189,9 @@ public class HologramManager {
     private boolean initializePacketEvents() {
         try {
             if (Bukkit.getPluginManager().isPluginEnabled("packetevents")) {
+                if (packetHologramManager != null) {
+                    org.bukkit.event.HandlerList.unregisterAll(packetHologramManager);
+                }
                 this.packetHologramManager = new PacketHologramManager(plugin);
                 this.usePacketEvents = packetHologramManager.isPacketEventsAvailable();
 

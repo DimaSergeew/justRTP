@@ -4,9 +4,9 @@ import eu.kotori.justRTP.JustRTP;
 import eu.kotori.justRTP.events.PlayerPostRTPEvent;
 import eu.kotori.justRTP.handlers.hooks.HookManager;
 import eu.kotori.justRTP.managers.ConfigManager;
+import eu.kotori.justRTP.utils.ChunkLoader;
 import eu.kotori.justRTP.utils.FoliaScheduler;
 import eu.kotori.justRTP.utils.SafetyValidator;
-import io.papermc.lib.PaperLib;
 import org.bukkit.*;
 import org.bukkit.block.Biome;
 import org.bukkit.block.Block;
@@ -182,7 +182,7 @@ public class RTPService {
             player.setVelocity(new org.bukkit.util.Vector(0, 0, 0));
             player.setFallDistance(0f);
 
-            PaperLib.teleportAsync(player, location).thenAccept(success -> {
+            player.teleportAsync(location).thenAccept(success -> {
                 if (success && player.isOnline()) {
                     plugin.getFoliaScheduler().runAtEntity(player, () -> {
                         if (!player.isOnline()) {
@@ -220,6 +220,10 @@ public class RTPService {
                 } else {
                     resultFuture.complete(false);
                 }
+            }).exceptionally(ex -> {
+                plugin.getLogger().warning("Teleport failed for " + player.getName() + ": " + ex.getMessage());
+                resultFuture.complete(false);
+                return null;
             });
         });
 
@@ -238,7 +242,7 @@ public class RTPService {
             for (int dz = -1; dz <= 1; dz++) {
                 int chunkX = centerChunkX + dx;
                 int chunkZ = centerChunkZ + dz;
-                PaperLib.getChunkAtAsync(world, chunkX, chunkZ, false);
+                ChunkLoader.getChunkAtAsync(world, chunkX, chunkZ, false);
             }
         }
     }
@@ -406,7 +410,7 @@ public class RTPService {
         int chunkX = x >> 4;
         int chunkZ = z >> 4;
 
-        return PaperLib.getChunkAtAsync(world, chunkX, chunkZ, generateChunks).thenCompose(chunk -> {
+        return ChunkLoader.getChunkAtAsync(world, chunkX, chunkZ, generateChunks).thenCompose(chunk -> {
             if (chunk == null) {
                 plugin.getRTPLogger().debug("CHUNK",
                         "Failed to load chunk at " + chunkX + ", " + chunkZ + " in " + world.getName()
@@ -429,7 +433,7 @@ public class RTPService {
                 List<CompletableFuture<Chunk>> neighborFutures = new ArrayList<>();
                 for (int dx = -1; dx <= 1; dx++) {
                     for (int dz = -1; dz <= 1; dz++) {
-                        neighborFutures.add(PaperLib.getChunkAtAsync(world, chunkX + dx, chunkZ + dz, true));
+                        neighborFutures.add(ChunkLoader.getChunkAtAsync(world, chunkX + dx, chunkZ + dz, true));
                     }
                 }
 
@@ -567,7 +571,7 @@ public class RTPService {
 
                 if (world.getEnvironment() == World.Environment.NORMAL) {
                     double y = loc.getY();
-                    if (y >= 127 || y < world.getMinHeight() + 5) {
+                    if (y >= world.getMaxHeight() - 2 || y < world.getMinHeight() + 5) {
                         plugin.getRTPLogger().debug("OVERWORLD",
                                 "[OVERWORLD SAFETY] Rejected Y=" + y + " (invalid height)");
                         summary.increment(FailureReason.UNKNOWN);
@@ -630,9 +634,9 @@ public class RTPService {
             return Optional.empty();
         }
 
-        if (groundY >= 127) {
+        if (groundY >= chunk.getWorld().getMaxHeight() - 2) {
             plugin.getRTPLogger().debug("SAFETY",
-                    "[SAFETY] findSafeInNormal() found groundY=" + groundY + " >= 127 in " +
+                    "[SAFETY] findSafeInNormal() found groundY=" + groundY + " >= maxHeight-2 in " +
                             chunk.getWorld().getName() + " - rejecting for safety");
             summary.increment(FailureReason.UNKNOWN);
             return Optional.empty();
@@ -643,9 +647,10 @@ public class RTPService {
         if (isSafe(groundLoc, summary).isEmpty()) {
             Location spawnLoc = new Location(chunk.getWorld(), x + 0.5, groundY + 1, z + 0.5);
 
-            if (spawnLoc.getY() >= 127.0) {
-                plugin.getLogger().severe("[CRITICAL SAFETY] findSafeInNormal() would spawn at Y=" + spawnLoc.getY() +
-                        " >= 127! Rejecting to prevent nether ceiling spawn.");
+            if (spawnLoc.getY() >= chunk.getWorld().getMaxHeight() - 2) {
+                plugin.getRTPLogger().debug("SAFETY",
+                        "[SAFETY] findSafeInNormal() spawn Y=" + spawnLoc.getY() +
+                        " >= maxHeight-2 in " + chunk.getWorld().getName() + " - rejecting");
                 summary.increment(FailureReason.UNKNOWN);
                 return Optional.empty();
             }

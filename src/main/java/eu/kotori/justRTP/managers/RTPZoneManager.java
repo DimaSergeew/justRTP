@@ -387,18 +387,19 @@ public class RTPZoneManager {
 
         double baseAngle = (2 * Math.PI * playerIndex) / totalPlayers;
 
-        double angleVariation = (Math.random() - 0.5) * (Math.PI / 12);
+        java.util.concurrent.ThreadLocalRandom rng = java.util.concurrent.ThreadLocalRandom.current();
+        double angleVariation = (rng.nextDouble() - 0.5) * (Math.PI / 12);
         double angle = baseAngle + angleVariation;
 
         double baseDistance;
         if (totalPlayers == 1) {
-            baseDistance = minSpread + ((maxSpread - minSpread) * Math.random());
+            baseDistance = minSpread + ((maxSpread - minSpread) * rng.nextDouble());
         } else {
             double layerFactor = ((double) playerIndex / totalPlayers);
             baseDistance = minSpread + ((maxSpread - minSpread) * layerFactor);
         }
 
-        double distanceVariation = (maxSpread - minSpread) * 0.2 * Math.random();
+        double distanceVariation = (maxSpread - minSpread) * 0.2 * rng.nextDouble();
         double distance = Math.max(minSpread + 5, Math.min(maxSpread - 5, baseDistance + distanceVariation));
 
         int offsetX = (int) (Math.cos(angle) * distance);
@@ -406,7 +407,7 @@ public class RTPZoneManager {
 
         Location targetLocation = centralLocation.clone().add(offsetX, 0, offsetZ);
 
-        plugin.getLogger().info(String.format(
+        plugin.getRTPLogger().debug("ZONE", String.format(
                 "[ZoneTP-Find] Player [%d/%d] → Angle: %.1f° | Distance: %.1f blocks | Offset: X%d Z%d | Already found: %d | Range: %d-%d blocks",
                 playerIndex + 1, totalPlayers, Math.toDegrees(angle), distance, offsetX, offsetZ,
                 foundLocations.size(), minSpread, maxSpread));
@@ -427,7 +428,7 @@ public class RTPZoneManager {
             int maxAttempts) {
 
         if (attempt >= maxAttempts) {
-            plugin.getLogger().warning(String.format(
+            plugin.getRTPLogger().debug("ZONE", String.format(
                     "[ZoneTP-Find] ✗ Exhausted all %d attempts to find valid location",
                     maxAttempts));
             return CompletableFuture.completedFuture(null);
@@ -440,12 +441,12 @@ public class RTPZoneManager {
         return findSafeYAtLocationAsync(world, targetX, targetZ)
                 .thenCompose(adjustedTarget -> {
                     if (adjustedTarget == null) {
-                        plugin.getLogger().warning(String.format(
+                        plugin.getRTPLogger().debug("ZONE", String.format(
                                 "[ZoneTP-Find] Attempt %d/%d: No safe Y found at X=%d Z=%d, trying different position",
                                 attempt + 1, maxAttempts, targetX, targetZ));
 
                         double retryAngle = baseAngle + ((attempt + 1) * Math.PI / 3);
-                        double retryDistance = minSpread + (Math.random() * (maxSpread - minSpread));
+                        double retryDistance = minSpread + (java.util.concurrent.ThreadLocalRandom.current().nextDouble() * (maxSpread - minSpread));
                         int retryOffsetX = (int) (Math.cos(retryAngle) * retryDistance);
                         int retryOffsetZ = (int) (Math.sin(retryAngle) * retryDistance);
                         Location retryTarget = centralLocation.clone().add(retryOffsetX, 0, retryOffsetZ);
@@ -457,13 +458,13 @@ public class RTPZoneManager {
                     return SafetyValidator.isLocationAbsolutelySafeAsync(adjustedTarget)
                             .thenCompose(isSafe -> {
                                 if (!isSafe) {
-                                    plugin.getLogger().warning(String.format(
+                                    plugin.getRTPLogger().debug("ZONE", String.format(
                                             "[ZoneTP-Find] Attempt %d/%d: Location unsafe at (%.1f, %.1f, %.1f), trying with adjusted angle",
                                             attempt + 1, maxAttempts, adjustedTarget.getX(), adjustedTarget.getY(),
                                             adjustedTarget.getZ()));
 
                                     double retryAngle = baseAngle + ((attempt + 1) * Math.PI / 3);
-                                    double retryDistance = minSpread + (Math.random() * (maxSpread - minSpread));
+                                    double retryDistance = minSpread + (java.util.concurrent.ThreadLocalRandom.current().nextDouble() * (maxSpread - minSpread));
                                     int retryOffsetX = (int) (Math.cos(retryAngle) * retryDistance);
                                     int retryOffsetZ = (int) (Math.sin(retryAngle) * retryDistance);
                                     Location retryTarget = centralLocation.clone().add(retryOffsetX, 0, retryOffsetZ);
@@ -481,7 +482,7 @@ public class RTPZoneManager {
 
                                         double distance = existing.distance(adjustedTarget);
                                         if (distance < minSpread) {
-                                            plugin.getLogger().info(String.format(
+                                            plugin.getRTPLogger().debug("ZONE", String.format(
                                                     "[ZoneTP-Find] Attempt %d/%d: Too close to player #%d (%.1f blocks < %d min) at (%.1f, %.1f, %.1f), adjusting position",
                                                     attempt + 1, maxAttempts, i + 1, distance, minSpread,
                                                     existing.getX(), existing.getY(), existing.getZ()));
@@ -535,7 +536,7 @@ public class RTPZoneManager {
     }
 
     private CompletableFuture<Location> findSafeYAtLocationAsync(World world, int x, int z) {
-        return io.papermc.lib.PaperLib.getChunkAtAsync(world, x >> 4, z >> 4).thenApply(chunk -> {
+        return eu.kotori.justRTP.utils.ChunkLoader.getChunkAtAsync(world, x >> 4, z >> 4).thenApply(chunk -> {
             if (chunk == null)
                 return null;
 
@@ -1129,7 +1130,7 @@ public class RTPZoneManager {
             CompletableFuture<List<Location>> finalFuture) {
 
         if (currentIndex >= players.size()) {
-            plugin.getLogger().info(String.format(
+            plugin.getRTPLogger().debug("ZONE", String.format(
                     "[ZoneTP-Sequential] ✓ All %d/%d locations found successfully",
                     foundLocations.size(), players.size()));
             finalFuture.complete(foundLocations);
@@ -1139,7 +1140,7 @@ public class RTPZoneManager {
         Player player = players.get(currentIndex);
 
         if (player == null || !player.isOnline()) {
-            plugin.getLogger().warning(String.format(
+            plugin.getRTPLogger().debug("ZONE", String.format(
                     "[ZoneTP-Sequential] [%d/%d] Player %s is offline, skipping",
                     currentIndex + 1, players.size(), player != null ? player.getName() : "NULL"));
             findLocationsSequentially(players, currentIndex + 1, firstLocation, foundLocations, zone, maxAttempts,
@@ -1147,7 +1148,7 @@ public class RTPZoneManager {
             return;
         }
 
-        plugin.getLogger().info(String.format(
+        plugin.getRTPLogger().debug("ZONE", String.format(
                 "[ZoneTP-Sequential] [%d/%d] Starting search for %s (foundLocations size: %d)",
                 currentIndex + 1, players.size(), player.getName(), foundLocations.size()));
 
@@ -1157,7 +1158,7 @@ public class RTPZoneManager {
                         synchronized (foundLocations) {
                             foundLocations.add(location);
                         }
-                        plugin.getLogger().info(String.format(
+                        plugin.getRTPLogger().debug("ZONE", String.format(
                                 "[ZoneTP-Sequential] [%d/%d] ✓ Found location for %s at (%.1f, %.1f, %.1f) - foundLocations now has %d entries",
                                 currentIndex + 1, players.size(), player.getName(),
                                 location.getX(), location.getY(), location.getZ(), foundLocations.size()));
@@ -1165,7 +1166,7 @@ public class RTPZoneManager {
                         findLocationsSequentially(players, currentIndex + 1, firstLocation, foundLocations, zone,
                                 maxAttempts, finalFuture);
                     } else {
-                        plugin.getLogger().warning(String.format(
+                        plugin.getRTPLogger().debug("ZONE", String.format(
                                 "[ZoneTP-Sequential] [%d/%d] ✗ Failed to find location for %s after %d attempts",
                                 currentIndex + 1, players.size(), player.getName(), maxAttempts));
 
@@ -1204,7 +1205,7 @@ public class RTPZoneManager {
             RTPZone zone,
             String teleportReason) {
 
-        plugin.getLogger().info(String.format(
+        plugin.getRTPLogger().debug("ZONE", String.format(
                 "[ZoneTP-Execute] Starting teleportation for %d players to zone '%s'",
                 players.size(), zone.getId()));
 
@@ -1226,12 +1227,8 @@ public class RTPZoneManager {
             int finalSuccess = successCount.get();
             int finalFail = failCount.get();
 
-            plugin.getLogger().info("╔════════════════════════════════════════════════════════════╗");
-            plugin.getLogger().info("║  ZONE TELEPORT COMPLETE: " + zone.getId() + "                  ║");
-            plugin.getLogger().info("║  Total Players: " + players.size() + "                         ║");
-            plugin.getLogger().info("║  Successful: " + finalSuccess + "                              ║");
-            plugin.getLogger().info("║  Failed: " + finalFail + "                                     ║");
-            plugin.getLogger().info("╚════════════════════════════════════════════════════════════╝");
+            plugin.getRTPLogger().debug("ZONE", "Zone teleport complete: " + zone.getId() +
+                    " | Total: " + players.size() + " | Success: " + finalSuccess + " | Failed: " + finalFail);
 
             if (finalFail > 0) {
                 plugin.getLogger().warning("[ZONE RTP] Zone " + zone.getId() + " had " + finalFail +
@@ -1246,7 +1243,7 @@ public class RTPZoneManager {
         final int totalPlayers = players.size();
 
         if (player == null || !player.isOnline()) {
-            plugin.getLogger().warning(String.format(
+            plugin.getRTPLogger().debug("ZONE", String.format(
                     "[ZoneTP-Execute] [%d/%d] Player %s is offline, skipping",
                     playerIndex + 1, totalPlayers, player != null ? player.getName() : "NULL"));
             failCount.incrementAndGet();
@@ -1255,7 +1252,7 @@ public class RTPZoneManager {
         }
 
         if (location == null) {
-            plugin.getLogger().warning(String.format(
+            plugin.getRTPLogger().debug("ZONE", String.format(
                     "[ZoneTP-Execute] [%d/%d] No location for %s, skipping",
                     playerIndex + 1, totalPlayers, player.getName()));
             failCount.incrementAndGet();
@@ -1263,7 +1260,7 @@ public class RTPZoneManager {
             return;
         }
 
-        plugin.getLogger().info(String.format(
+        plugin.getRTPLogger().debug("ZONE", String.format(
                 "[ZoneTP-Execute] [%d/%d] Teleporting %s to (%.1f, %.1f, %.1f)",
                 playerIndex + 1, totalPlayers, player.getName(),
                 location.getX(), location.getY(), location.getZ()));
@@ -1348,7 +1345,7 @@ public class RTPZoneManager {
 
                         plugin.getLocaleManager().sendMessage(player, "zone.teleport_success");
 
-                        plugin.getLogger().info(String.format(
+                        plugin.getRTPLogger().debug("ZONE", String.format(
                                 "[ZoneTP-Execute] ✓ [%d/%d] Successfully teleported %s to Y=%.1f",
                                 playerIndex + 1, totalPlayers, player.getName(), location.getY()));
                     });

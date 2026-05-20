@@ -1,7 +1,6 @@
 package eu.kotori.justRTP.utils;
 
 import eu.kotori.justRTP.JustRTP;
-import io.papermc.lib.PaperLib;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -17,7 +16,7 @@ public class SafetyValidator {
             return CompletableFuture.completedFuture(false);
         }
 
-        return PaperLib.getChunkAtAsync(location)
+        return ChunkLoader.getChunkAtAsync(location)
                 .thenApply(chunk -> {
                     if (chunk == null)
                         return false;
@@ -99,16 +98,15 @@ public class SafetyValidator {
             return false;
 
         Block groundBlock = chunk.getBlock(x, (int) y - 1, z);
-        if (!groundBlock.getType().isSolid())
+        Material groundType = groundBlock.getType();
+        if (!groundType.isSolid())
             return false;
 
-        Material groundType = groundBlock.getType();
         if (groundType != Material.END_STONE &&
                 groundType != Material.OBSIDIAN &&
-                !groundType.isSolid()) {
-            if (groundType != Material.END_STONE && groundType != Material.OBSIDIAN)
-                return false;
-        }
+                groundType != Material.END_STONE_BRICKS &&
+                groundType != Material.PURPUR_BLOCK)
+            return false;
 
         Block feetBlock = chunk.getBlock(x, (int) y, z);
         Block headBlock = chunk.getBlock(x, (int) y + 1, z);

@@ -1,8 +1,8 @@
 package eu.kotori.justRTP.managers;
 
 import eu.kotori.justRTP.JustRTP;
+import eu.kotori.justRTP.utils.ChunkLoader;
 import eu.kotori.justRTP.utils.FormatUtils;
-import io.papermc.lib.PaperLib;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -90,7 +90,8 @@ public class NearClaimRTPManager {
             return;
         }
         long now = System.currentTimeMillis();
-        if (this.cooldowns.containsKey(player.getUniqueId()) && (remaining = this.cooldowns.get(player.getUniqueId()) - now) > 0L) {
+        Long cooldownEnd = this.cooldowns.get(player.getUniqueId());
+        if (cooldownEnd != null && (remaining = cooldownEnd - now) > 0L) {
             this.plugin.getLocaleManager().sendMessage((CommandSender)player, "near_claim_rtp.cooldown", Map.of("time", String.valueOf(remaining / 1000L)));
             return;
         }
@@ -170,7 +171,7 @@ public class NearClaimRTPManager {
         int chunkX = candidate.getBlockX() >> 4;
         int chunkZ = candidate.getBlockZ() >> 4;
         CompletableFuture<Optional<Location>> stepFuture = new CompletableFuture<>();
-        PaperLib.getChunkAtAsync(world, chunkX, chunkZ, true).thenAccept(chunk -> {
+        ChunkLoader.getChunkAtAsync(world, chunkX, chunkZ, true).thenAccept(chunk -> {
             this.plugin.getFoliaScheduler().runAtLocation(candidate, () -> {
                 try {
                     candidate.setY((double)(world.getHighestBlockYAt(candidate) + 1));
@@ -294,11 +295,9 @@ public class NearClaimRTPManager {
                     return claims;
                 }
                 Class<?> gpClass = Class.forName("me.ryanhamshire.GriefPrevention.GriefPrevention");
-                Method getInstanceMethod = gpClass.getMethod("instance", new Class[0]);
-                Object gpInstance = getInstanceMethod.invoke(null, new Object[0]);
+                Object gpInstance = gpClass.getField("instance").get(null);
                 Class<?> dataStoreClass = Class.forName("me.ryanhamshire.GriefPrevention.DataStore");
-                Method getDataStoreMethod = gpClass.getMethod("dataStore", new Class[0]);
-                Object dataStore = getDataStoreMethod.invoke(gpInstance, new Object[0]);
+                Object dataStore = gpInstance.getClass().getField("dataStore").get(gpInstance);
                 Method getClaimsMethod = dataStoreClass.getMethod("getClaims", new Class[0]);
                 Collection allClaims = (Collection)getClaimsMethod.invoke(dataStore, new Object[0]);
                 for (Object claim : allClaims) {

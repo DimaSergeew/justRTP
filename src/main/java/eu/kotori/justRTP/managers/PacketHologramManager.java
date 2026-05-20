@@ -75,8 +75,6 @@ public class PacketHologramManager implements Listener {
         this.plugin = plugin;
         this.displayEntitiesFile = new File(plugin.getDataFolder(), "display_entities.yml");
         this.packetEventsAvailable = true;
-
-        Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
     public void initialize() {
@@ -147,7 +145,7 @@ public class PacketHologramManager implements Listener {
             return;
         }
 
-        io.papermc.lib.PaperLib.getChunkAtAsync(location).thenAccept(chunk -> {
+        eu.kotori.justRTP.utils.ChunkLoader.getChunkAtAsync(location).thenAccept(chunk -> {
             plugin.getFoliaScheduler().runAtLocation(location, () -> {
                 try {
                     removeHologram(zoneId);

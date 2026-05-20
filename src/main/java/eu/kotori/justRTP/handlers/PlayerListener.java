@@ -2,8 +2,8 @@ package eu.kotori.justRTP.handlers;
 
 import eu.kotori.justRTP.JustRTP;
 import eu.kotori.justRTP.commands.RTPCommand;
+import eu.kotori.justRTP.utils.ChunkLoader;
 import eu.kotori.justRTP.utils.FoliaScheduler;
-import io.papermc.lib.PaperLib;
 import com.destroystokyo.paper.event.player.PlayerPostRespawnEvent;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -156,7 +156,7 @@ public class PlayerListener implements Listener {
                                                     return;
                                                 }
 
-                                                PaperLib.teleportAsync(player, targetLocation).thenAccept(success -> {
+                                                player.teleportAsync(targetLocation).thenAccept(success -> {
                                                     if (success && player.isOnline()) {
                                                         plugin.getRTPLogger().debug("JOIN",
                                                                 "Successfully teleported " + player.getName()
@@ -498,7 +498,7 @@ public class PlayerListener implements Listener {
                 int chunkX = centerChunkX + dx;
                 int chunkZ = centerChunkZ + dz;
 
-                chunkFutures[index++] = PaperLib.getChunkAtAsync(world, chunkX, chunkZ, false)
+                chunkFutures[index++] = ChunkLoader.getChunkAtAsync(world, chunkX, chunkZ, false)
                         .thenApply(chunk -> {
                             if (FoliaScheduler.isFolia() && chunk != null) {
                                 try {
@@ -533,7 +533,7 @@ public class PlayerListener implements Listener {
                 int chunkX = centerChunkX + dx;
                 int chunkZ = centerChunkZ + dz;
                 try {
-                    PaperLib.getChunkAtAsync(world, chunkX, chunkZ, false);
+                    ChunkLoader.getChunkAtAsync(world, chunkX, chunkZ, false);
                 } catch (Exception ignored) {
                 }
             }
